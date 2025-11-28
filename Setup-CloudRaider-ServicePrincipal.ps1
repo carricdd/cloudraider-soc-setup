@@ -205,11 +205,13 @@ if ($ExistingApp) {
 
 # Define Microsoft Graph permissions based on access level
 $ReadOnlyPermissions = @(
+    @{ Id = "472e4a4d-bb4a-4026-98d1-0571d7e0f65a"; Type = "Role" }  # SecurityAlert.Read.All (CRITICAL - alerts API)
     @{ Id = "e2a3a72e-5f79-4c64-b1b1-878b674786c9"; Type = "Role" }  # AuditLog.Read.All
     @{ Id = "7ab1d382-f21e-4acd-a863-ba3e13f7da61"; Type = "Role" }  # Directory.Read.All
     @{ Id = "bf394140-e372-4bf9-a898-299cfc7564e5"; Type = "Role" }  # SecurityEvents.Read.All
     @{ Id = "45cc0394-e837-488b-a098-1918f48d186c"; Type = "Role" }  # SecurityIncident.Read.All
     @{ Id = "df021288-bdef-4463-88db-98f22de89214"; Type = "Role" }  # User.Read.All
+    @{ Id = "dc5007c0-2d7d-4c42-879c-2dab87571379"; Type = "Role" }  # IdentityRiskyUser.Read.All (risky user detection)
     @{ Id = "6e472fd1-ad78-48da-a0f0-97ab2c6b769e"; Type = "Role" }  # IdentityRiskEvent.Read.All
     @{ Id = "dd98c7f5-2d42-42d3-a0e4-633161547251"; Type = "Role" }  # ThreatHunting.Read.All (MDE Advanced Hunting)
     @{ Id = "5e0edab9-c148-49d0-b423-ac253e121825"; Type = "Role" }  # SecurityActions.Read.All (Secure Score)
@@ -376,11 +378,13 @@ Permissions Granted:
 $(if ($AccessLevel -eq "ReadOnly") {
 "- Read-only access to security logs
 - Microsoft Graph API:
+  - SecurityAlert.Read.All (security alerts)
   - AuditLog.Read.All
   - Directory.Read.All
   - SecurityEvents.Read.All
   - SecurityIncident.Read.All
   - User.Read.All
+  - IdentityRiskyUser.Read.All (risky user detection)
   - IdentityRiskEvent.Read.All
   - ThreatHunting.Read.All
   - SecurityActions.Read.All
