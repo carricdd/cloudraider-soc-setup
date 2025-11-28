@@ -150,7 +150,7 @@ Write-Host "`n[3/7] Connecting to Microsoft Graph..." -ForegroundColor $ColorInf
 Write-Host "   (Browser window will open for authentication)`n" -ForegroundColor Gray
 
 try {
-    Connect-MgGraph -Scopes "Application.ReadWrite.All", "Directory.ReadWrite.All", "RoleManagement.ReadWrite.Directory" -ErrorAction Stop | Out-Null
+    Connect-MgGraph -Scopes "Application.ReadWrite.All", "Directory.ReadWrite.All", "RoleManagement.ReadWrite.Directory", "AppRoleAssignment.ReadWrite.All" -ErrorAction Stop | Out-Null
     Write-Host "   ✓ Connected to Microsoft Graph" -ForegroundColor $ColorSuccess
 } catch {
     Write-Host "   ✗ Failed to connect: $($_.Exception.Message)" -ForegroundColor $ColorError
@@ -263,24 +263,73 @@ $ServicePrincipal = New-MgServicePrincipal @SpParams -ErrorAction Stop
 Write-Host "   ✓ Service Principal created" -ForegroundColor $ColorSuccess
 Write-Host "   Object ID: $($ServicePrincipal.Id)" -ForegroundColor Gray
 
-# Grant admin consent
-Write-Host "`n   Granting admin consent to permissions..." -ForegroundColor Gray
+# Grant admin consent PROGRAMMATICALLY (no browser popup)
+Write-Host "`n   Granting admin consent programmatically..." -ForegroundColor Gray
 
 Start-Sleep -Seconds 10  # Wait for Azure AD replication
 
-# Admin consent requires manual approval in most tenants
-Write-Host "   ⚠ Admin consent may require manual approval" -ForegroundColor $ColorWarning
-Write-Host "   If prompted, click 'Accept' in the browser window`n" -ForegroundColor Gray
-
-# Open admin consent URL
 $TenantId = $Context.TenantId
-$ConsentUrl = "https://login.microsoftonline.com/$TenantId/adminconsent?client_id=$($App.AppId)"
 
-Write-Host "   Opening admin consent page..." -ForegroundColor Gray
-Start-Process $ConsentUrl
+# Get Microsoft Graph service principal in this tenant
+$GraphSP = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'" -ErrorAction Stop | Select-Object -First 1
+if (-not $GraphSP) {
+    Write-Host "   ✗ Could not find Microsoft Graph service principal" -ForegroundColor $ColorError
+    exit 1
+}
+Write-Host "   Found Microsoft Graph SP: $($GraphSP.Id)" -ForegroundColor Gray
 
-Write-Host "`n   Waiting for admin consent (check your browser)..." -ForegroundColor Yellow
-Read-Host "   Press ENTER after granting consent"
+# Get Log Analytics API service principal
+$LogAnalyticsSP = Get-MgServicePrincipal -Filter "appId eq 'ca7f3f0b-7d91-482c-8e09-c5d840d0eac5'" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+# Grant each Graph permission
+$Granted = 0
+$Failed = 0
+
+foreach ($Permission in $GraphPermissions) {
+    try {
+        $Params = @{
+            PrincipalId = $ServicePrincipal.Id
+            ResourceId = $GraphSP.Id
+            AppRoleId = $Permission.Id
+        }
+        New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ServicePrincipal.Id -BodyParameter $Params -ErrorAction Stop | Out-Null
+        $Granted++
+    }
+    catch {
+        if ($_.Exception.Message -match "Permission being assigned already exists") {
+            # Already granted, that's fine
+            $Granted++
+        } else {
+            Write-Host "   ⚠ Failed to grant permission $($Permission.Id): $($_.Exception.Message)" -ForegroundColor $ColorWarning
+            $Failed++
+        }
+    }
+}
+
+# Grant Log Analytics permission if SP exists
+if ($LogAnalyticsSP) {
+    try {
+        $Params = @{
+            PrincipalId = $ServicePrincipal.Id
+            ResourceId = $LogAnalyticsSP.Id
+            AppRoleId = "0c0bf378-bf22-4481-8f81-9e89a9b4960a"  # Data.Read
+        }
+        New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ServicePrincipal.Id -BodyParameter $Params -ErrorAction Stop | Out-Null
+        Write-Host "   ✓ Granted Log Analytics Data.Read" -ForegroundColor $ColorSuccess
+    }
+    catch {
+        if (-not ($_.Exception.Message -match "Permission being assigned already exists")) {
+            Write-Host "   ⚠ Log Analytics permission: $($_.Exception.Message)" -ForegroundColor $ColorWarning
+        }
+    }
+}
+
+if ($Failed -eq 0) {
+    Write-Host "   ✓ Admin consent granted for $Granted permissions" -ForegroundColor $ColorSuccess
+} else {
+    Write-Host "   ⚠ Granted $Granted permissions, $Failed failed" -ForegroundColor $ColorWarning
+    Write-Host "   Some permissions may need manual consent in Azure Portal" -ForegroundColor Gray
+}
 
 # Create Client Secret
 Write-Host "`n[7/7] Creating client secret..." -ForegroundColor $ColorInfo
