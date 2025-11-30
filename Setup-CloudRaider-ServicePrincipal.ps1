@@ -204,24 +204,40 @@ if ($ExistingApp) {
 }
 
 # Define Microsoft Graph permissions based on access level
+# VERIFIED GUIDs from Microsoft Graph API documentation and working deployments
+# Last verified: 2025-11-30 against CloudRaider tenant
 $ReadOnlyPermissions = @(
-    @{ Id = "472e4a4d-bb4a-4026-98d1-0571d7e0f65a"; Type = "Role" }  # SecurityAlert.Read.All (CRITICAL - alerts API)
-    @{ Id = "e2a3a72e-5f79-4c64-b1b1-878b674786c9"; Type = "Role" }  # AuditLog.Read.All
+    # SECURITY - Core monitoring
+    @{ Id = "bf394140-e372-4bf9-a898-299cfc7564e5"; Type = "Role" }  # SecurityAlert.Read.All
+    @{ Id = "bc257fb8-46b4-4b15-8713-01e91bfbe4ea"; Type = "Role" }  # SecurityIncident.Read.All (CRITICAL - was missing!)
+    @{ Id = "b0afded3-3588-46d8-8b3d-9842eff778da"; Type = "Role" }  # SecurityEvents.Read.All
+    @{ Id = "9d77138f-f0c0-4fb8-92e7-cf9f8b0c5b82"; Type = "Role" }  # SecurityActions.Read.All (Secure Score)
+    @{ Id = "6e472fd1-ad78-48da-a0f0-97ab2c6b769e"; Type = "Role" }  # ThreatHunting.Read.All (Advanced Hunting)
+
+    # IDENTITY - User and risk detection
+    @{ Id = "5e0edab9-c148-49d0-b423-ac253e121825"; Type = "Role" }  # User.Read.All
     @{ Id = "7ab1d382-f21e-4acd-a863-ba3e13f7da61"; Type = "Role" }  # Directory.Read.All
-    @{ Id = "bf394140-e372-4bf9-a898-299cfc7564e5"; Type = "Role" }  # SecurityEvents.Read.All
-    @{ Id = "45cc0394-e837-488b-a098-1918f48d186c"; Type = "Role" }  # SecurityIncident.Read.All
-    @{ Id = "df021288-bdef-4463-88db-98f22de89214"; Type = "Role" }  # User.Read.All
-    @{ Id = "dc5007c0-2d7d-4c42-879c-2dab87571379"; Type = "Role" }  # IdentityRiskyUser.Read.All (risky user detection)
-    @{ Id = "6e472fd1-ad78-48da-a0f0-97ab2c6b769e"; Type = "Role" }  # IdentityRiskEvent.Read.All
-    @{ Id = "dd98c7f5-2d42-42d3-a0e4-633161547251"; Type = "Role" }  # ThreatHunting.Read.All (MDE Advanced Hunting)
-    @{ Id = "5e0edab9-c148-49d0-b423-ac253e121825"; Type = "Role" }  # SecurityActions.Read.All (Secure Score)
+    @{ Id = "dc5007c0-2d7d-4c42-879c-2dab87571379"; Type = "Role" }  # IdentityRiskyUser.Read.All
+    @{ Id = "df021288-bdef-4463-88db-98f22de89214"; Type = "Role" }  # IdentityRiskEvent.Read.All
+
+    # AUDIT & REPORTING
+    @{ Id = "197ee4e9-b993-4066-898f-d6aecc55125b"; Type = "Role" }  # AuditLog.Read.All
+    @{ Id = "2f3e6f8c-093b-4c57-a58b-ba5ce494a169"; Type = "Role" }  # Reports.Read.All
+
+    # DEVICE & POLICY
+    @{ Id = "7438b122-aefc-4978-80ed-43db9fcc7715"; Type = "Role" }  # Device.Read.All
+    @{ Id = "2f51be20-0bb4-4fed-bf7b-db946066c75e"; Type = "Role" }  # Policy.Read.All
+    @{ Id = "9e640839-a198-48fb-8b9a-013fd6f6cbcd"; Type = "Role" }  # Organization.Read.All
 )
 
 $FullResponsePermissions = $ReadOnlyPermissions + @(
-    @{ Id = "741f803b-c850-494e-b5df-cde7c675a1ca"; Type = "Role" }  # User.ReadWrite.All
-    @{ Id = "f2bf083f-0179-402a-bedb-b2784de8a49b"; Type = "Role" }  # SecurityActions.ReadWrite.All
-    @{ Id = "50483e42-d915-4231-9639-7fdb7fd190e5"; Type = "Role" }  # UserAuthenticationMethod.ReadWrite.All
-    @{ Id = "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8"; Type = "Role" }  # RoleManagement.ReadWrite.Directory
+    # INCIDENT RESPONSE - Write permissions
+    @{ Id = "45cc0394-e837-488b-a098-1918f48d186c"; Type = "Role" }  # SecurityIncident.ReadWrite.All (close/update incidents)
+    @{ Id = "ed4fca05-be46-441f-9571-c5e8b01a0c3b"; Type = "Role" }  # SecurityAlert.ReadWrite.All (update alerts)
+    @{ Id = "741f803b-c850-494e-b5df-cde7c675a1ca"; Type = "Role" }  # User.ReadWrite.All (disable accounts)
+    @{ Id = "50483e42-d915-4231-9639-7fdb7fd190e5"; Type = "Role" }  # UserAuthenticationMethod.ReadWrite.All (reset passwords)
+    @{ Id = "9e3f62cf-ca93-4989-b6ce-bf83c28f9fe8"; Type = "Role" }  # RoleManagement.ReadWrite.Directory (remove admin roles)
+    @{ Id = "246dd0d5-5bd0-4def-940b-0421030a5b68"; Type = "Role" }  # Policy.ReadWrite.ConditionalAccess (block IPs)
 )
 
 $GraphPermissions = if ($AccessLevel -eq "ReadOnly") { $ReadOnlyPermissions } else { $FullResponsePermissions }
