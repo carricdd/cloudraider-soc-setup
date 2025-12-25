@@ -1,220 +1,211 @@
-# CloudRaider SOC Setup
+# CloudRaider MSSP Service Principal Setup
 
-**Automated Service Principal Configuration for Microsoft 365 Security Monitoring**
+Deploy secure service principals for CloudRaider managed security services.
 
-This repository contains self-service PowerShell scripts that allow your IT team to quickly and securely grant CloudRaider access to your Microsoft 365 environment for 24/7 security monitoring.
+## Three-Tier Model
 
-## What This Does
-
-CloudRaider provides Security Operations Center (SOC) as-a-Service. To monitor your environment, we need read-only access to your security logs. This script automates the entire setup process in ~5 minutes.
-
-### Two Access Levels
-
-**1. ReadOnly (Detection & Monitoring)** - Recommended to start
-- Detects threats and suspicious activity  
-- Alerts your team to security events
-- Reads audit logs, security events, and user activity
-- Cannot make any changes to your environment
-
-**2. FullResponse (Incident Response)** - Optional upgrade
-- Everything in ReadOnly, PLUS:
-- Disable compromised accounts during active attacks
-- Block attacker IP addresses
-- Force password resets on breached accounts
-- Take immediate defensive action
-
-## Requirements
-
-- **Global Administrator** access to your Microsoft 365 tenant
-- **PowerShell 7+** ([Download](https://aka.ms/powershell))
-- **10 minutes** of your time
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CLOUDRAIDER SERVICE PRINCIPAL ARCHITECTURE                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CloudRaider-SOC (Required for all customers)                              │
+│  └── Continuous monitoring, alert detection, security posture assessment   │
+│      Risk: LOW | Permissions: Read-heavy                                    │
+│                                                                             │
+│  CloudRaider-IR (Break-glass incident response)                            │
+│  └── Block accounts, revoke tokens, isolate endpoints during attacks       │
+│      Risk: HIGH | Permissions: Full write for IR actions                   │
+│                                                                             │
+│  CloudRaider-Admin (Managed services only)                                 │
+│  └── User provisioning, license management, device enrollment              │
+│      Risk: MEDIUM | Permissions: Admin tasks                               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Quick Start
 
-### Recommended: Download and Run
-
-1. Download [`Setup-CloudRaider-ServicePrincipal.ps1`](./Setup-CloudRaider-ServicePrincipal.ps1)
-2. Right-click → "Run with PowerShell"
-3. Enter your company name when prompted
-4. Grant admin consent in the browser window
-5. Copy credentials and send to CloudRaider via Teams or encrypted email
-
-### Command Line Usage
-
+### SOC Customers (Monitoring Only)
 ```powershell
-# Clone repository
-git clone https://github.com/cloudraider/cloudraider-soc-setup.git
-cd cloudraider-soc-setup
-
-# Run setup (ReadOnly monitoring)
-.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company Name"
-
-# Or with full incident response capabilities
-.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company Name" -AccessLevel FullResponse
+# Creates CloudRaider-SOC + CloudRaider-IR
+.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company"
 ```
 
-## What Gets Created
+### Fully Managed Customers
+```powershell
+# Creates all three service principals
+.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company" -SPType All
+```
 
-The script creates:
+### Just Incident Response Capability
+```powershell
+# Creates only CloudRaider-IR
+.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company" -SPType IR
+```
 
-1. **App Registration** named "CloudRaiderSOC" in your Azure AD
-2. **Service Principal** with least-privilege permissions
-3. **Client Secret** valid for 24 months
-4. **Credentials file** in copy-paste format
+## Requirements
 
-### Permissions Granted (ReadOnly)
+- **PowerShell 7+** ([Download](https://aka.ms/powershell))
+- **Global Administrator** role in your Azure AD tenant
+- **Internet connection**
 
-**Microsoft Graph API**:
-- `AuditLog.Read.All` - Read audit logs
-- `Directory.Read.All` - Read directory information
-- `SecurityEvents.Read.All` - Read security events
-- `SecurityIncident.Read.All` - Read security incidents and alerts
-- `User.Read.All` - Read user profiles
-- `IdentityRiskEvent.Read.All` - Read identity risk events
-- `ThreatHunting.Read.All` - Advanced hunting queries (Defender)
-- `SecurityActions.Read.All` - Read secure score
+## Security Protections
 
-**Azure Log Analytics API**:
-- `Data.Read` - Query Sentinel workspace logs
+### What the Script Does
 
-### Additional Permissions (FullResponse)
+1. **Creates app registrations** with minimum required permissions
+2. **Grants admin consent** programmatically (no portal popups)
+3. **Generates time-limited secrets** (2-year expiration)
+4. **Auto-detects and repairs** if run again (idempotent)
 
-If you choose FullResponse access level, these are added:
+### What YOU Should Do After Setup
 
-- `User.ReadWrite.All` - Disable compromised accounts
-- `SecurityActions.ReadWrite.All` - Block IPs, quarantine devices
-- `UserAuthenticationMethod.ReadWrite.All` - Force password resets
-- `RoleManagement.ReadWrite.Directory` - Remove admin privileges during attacks
+#### 1. Restrict Service Principal IPs (CRITICAL)
 
-## Security & Compliance
+Create a Conditional Access policy to limit SP access to CloudRaider IPs:
 
-### How CloudRaider Protects Your Data
+```
+Name: "Restrict CloudRaider-IR to CloudRaider IPs"
+Users: Select the CloudRaider-IR service principal
+Conditions:
+  - Locations: All locations EXCEPT CloudRaider trusted IPs
+Grant: Block access
+```
 
-- **Least Privilege**: Only permissions required for monitoring
-- **Audit Trail**: All actions logged in Azure AD audit logs
-- **No Data Storage**: We query in real-time, don't store logs
-- **Revocable Access**: You can delete the app registration anytime
-- **Encrypted Transit**: All API calls use TLS 1.2+
-- **SOC 2 Type II Compliant**: Annual third-party audits
-- **HIPAA Compliant**: BAA available upon request
+CloudRaider will provide their static IP ranges for this configuration.
 
-### Compliance Frameworks Supported
+#### 2. Enable Sign-in Logging
 
-- HIPAA (Healthcare)
-- CJIS (Law Enforcement)
-- PCI-DSS (Payment Card Industry)
-- NIST CSF (Cybersecurity Framework)
-- CIS Controls
+Ensure these logs are retained:
+- **Azure AD Sign-in logs** (at least 30 days)
+- **Audit logs** (at least 90 days)
+- **Forward to your SIEM** if possible
 
-### How to Audit CloudRaider Actions
+All CloudRaider SP actions are logged in your tenant.
 
-1. Go to **Azure Portal** → **Azure Active Directory**
-2. Click **Audit logs** in left menu
-3. Search for: `CloudRaiderSOC`
-4. Review all actions taken
+#### 3. Set Up Alerting
 
-### How to Revoke Access
+Create alerts for unusual SP activity:
+- Sign-ins from unexpected locations
+- Failed authentication attempts
+- Permission changes
 
-If you need to revoke CloudRaider's access:
+#### 4. Regular Access Reviews
 
-1. Go to **Azure Portal** → **Azure Active Directory**
-2. Click **App registrations** in left menu
-3. Find **CloudRaiderSOC**
-4. Click **Delete**
+- **Quarterly**: Review SP permissions with CloudRaider
+- **Annually**: Rotate secrets (or sooner if compromised)
+- **On termination**: Run uninstall script
 
-Access is immediately revoked.
+### Secret Management
 
-## Frequently Asked Questions
+```
+⚠️  CRITICAL: Secrets are shown ONCE during setup.
+    They cannot be retrieved later.
 
-### Q: Is this safe to run?
+    If you lose a secret, simply re-run the script.
+    It will detect the existing SP and generate a new secret.
+```
 
-**A:** Yes. This script only creates an app registration with read-only permissions (unless you choose FullResponse). You review and approve every permission before granting consent. All actions are logged in Azure AD audit logs.
+## Uninstall / Revoke Access
 
-### Q: What data can CloudRaider see?
+### Complete Removal
+```powershell
+.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company" -SPType All -Uninstall
+```
 
-**A:** CloudRaider can see:
-- Security alerts and incidents
-- User sign-in activity
-- Audit logs
-- Security configuration settings
+### Remove Just IR Capability
+```powershell
+.\Setup-CloudRaider-ServicePrincipal.ps1 -CustomerName "Your Company" -SPType IR -Uninstall
+```
 
-CloudRaider **cannot** see:
-- Email contents
-- Files in SharePoint/OneDrive
-- Teams messages
-- Personal user data (except usernames and sign-in activity)
+### Emergency Revocation
 
-### Q: Can CloudRaider make changes to my environment?
+If you need to immediately revoke access:
 
-**A:** Only if you choose **FullResponse** access level AND explicitly grant those permissions. With **ReadOnly** (default), CloudRaider can only read data and alert you - no changes possible.
+1. **Azure Portal** → Azure Active Directory → App registrations
+2. Find `CloudRaider-SOC`, `CloudRaider-IR`, or `CloudRaider-Admin`
+3. Click **Delete**
 
-### Q: How long is the client secret valid?
+Or use PowerShell:
+```powershell
+Connect-MgGraph -Scopes "Application.ReadWrite.All"
+Get-MgApplication -Filter "startswith(displayName, 'CloudRaider')" | Remove-MgApplication
+```
 
-**A:** 24 months (2 years). You'll receive a notification 30 days before expiration to rotate the secret.
+## Permissions Reference
 
-### Q: What if I already have an app named "CloudRaiderSOC"?
+### CloudRaider-SOC (Monitoring)
 
-**A:** The script will detect it and ask if you want to delete and recreate. This is safe - credentials change but monitoring continues with new credentials.
+| Category | Permissions | Purpose |
+|----------|-------------|---------|
+| Security | SecurityAlert.Read.All, SecurityEvents.Read.All | Detect threats |
+| Identity | User.Read.All, Directory.Read.All | User context |
+| Audit | AuditLog.Read.All | Sign-in analysis |
+| Mail | Mail.Read (app) | BEC detection |
+| Devices | Device.Read.All | Asset inventory |
+| MDE | Alert.Read.All, Machine.Read.All | Endpoint threats |
 
-### Q: Do you support multi-tenant environments?
+### CloudRaider-IR (Incident Response)
 
-**A:** Yes! Run the script in each tenant where you want CloudRaider monitoring.
+Includes all SOC permissions, PLUS:
 
-### Q: What if I don't have Global Administrator access?
+| Category | Permissions | Purpose |
+|----------|-------------|---------|
+| Users | User.ReadWrite.All | Disable compromised accounts |
+| Policy | Policy.ReadWrite.ConditionalAccess | Block attackers |
+| Apps | Application.ReadWrite.All | Revoke OAuth consents |
+| Mail | MailboxSettings.ReadWrite | Remove malicious forwarding |
+| MDE | Machine.Isolate, Machine.LiveResponse | Contain threats |
 
-**A:** You need Global Admin to create app registrations and grant admin consent. Ask your IT administrator to run this script.
+### CloudRaider-Admin (Tenant Management)
 
-## What Happens After Setup
+| Category | Permissions | Purpose |
+|----------|-------------|---------|
+| Directory | Directory.ReadWrite.All | Full admin |
+| Users | User.ReadWrite.All | User provisioning |
+| Devices | Device.ReadWrite.All | Device management |
+| Intune | DeviceManagement*.ReadWrite.All | MDM management |
+| Policy | Policy.ReadWrite.* | Policy management |
 
-1. **Send Credentials**: Copy credentials output and send to CloudRaider via Teams or encrypted email
-2. **We Test Connectivity**: Within 24 hours, CloudRaider tests the connection
-3. **You Get Confirmation**: We send you a confirmation email when monitoring starts
-4. **24/7 Monitoring Begins**: Our SOC team monitors your environment around the clock
+## Troubleshooting
+
+### "Not a Global Administrator"
+
+You must be a Global Administrator to run this script. Check your role:
+1. Azure Portal → Azure Active Directory → Users
+2. Find yourself → Assigned roles
+3. Ensure "Global Administrator" is listed
+
+### "Permission denied" during grant
+
+Some permissions require additional licensing:
+- **Threat Hunting**: Requires Microsoft 365 E5 or Defender for Endpoint P2
+- **Log Analytics**: Requires Azure Sentinel or Log Analytics workspace
+
+The script will warn you but continue with available permissions.
+
+### Script keeps asking to authenticate
+
+Your Graph session may have expired. Close PowerShell and start fresh.
+
+### Missing MDE permissions
+
+If Microsoft Defender for Endpoint isn't configured in your tenant, MDE permissions will be skipped. This is normal for tenants without MDE.
 
 ## Support
 
-### CloudRaider Support
-
 - **Email**: support@cloudraider.com
-- **Emergency Security Hotline**: [Emergency contact]
-- **Teams Channel**: [Your dedicated channel]
-
-### Technical Issues
-
-If the script fails:
-
-1. **Check PowerShell Version**: `$PSVersionTable.PSVersion` (must be 7+)
-2. **Verify Admin Rights**: `Get-MgContext` should show your Global Admin account
-3. **Check Network**: Ensure you can access `graph.microsoft.com`
-4. **Contact Support**: Send error message to support@cloudraider.com
-
-## License
-
-This script is provided by CloudRaider LLC for use by CloudRaider customers and prospects.
-
-**Permitted Use**:
-- Download and run to configure CloudRaider monitoring
-- Review code for security assessment
-- Share with your IT team
-- Modify for your specific environment
-
-**Prohibited Use**:
-- Resell or redistribute as a service
-- Remove copyright notices
-- Use for competing SOC services
-
-## Security Disclosure
-
-If you discover a security vulnerability in this script, please email security@cloudraider.com. We'll respond within 24 hours.
+- **GitHub Issues**: [cloudraider-soc-setup](https://github.com/carricdd/cloudraider-soc-setup/issues)
 
 ## Version History
 
-- **v1.2** (2025-11-24): Added Azure Log Analytics API permissions for Sentinel workspace queries
-- **v1.1** (2025-06-15): Added FullResponse access level with incident response capabilities
-- **v1.0** (2025-03-01): Initial release with ReadOnly monitoring
+| Version | Date | Changes |
+|---------|------|---------|
+| 3.0 | 2025-12-25 | Three-tier model (SOC/IR/Admin), created during LifeScan incident |
+| 2.0 | 2025-12-05 | Smart auto-detection, repair mode |
+| 1.0 | 2025-10-01 | Initial release |
 
 ---
 
-**Thank you for choosing CloudRaider!**
-
-We're committed to keeping your organization secure. Questions? Contact support@cloudraider.com anytime.
+*Created by CloudRaider Security - Incident-Driven Development*
