@@ -137,36 +137,55 @@ Get-MgApplication -Filter "startswith(displayName, 'CloudRaider')" | Remove-MgAp
 
 ### CloudRaider-SOC (Monitoring)
 
+45 Graph permissions + 11 MDE permissions. Risk: LOW (read-heavy).
+
 | Category | Permissions | Purpose |
 |----------|-------------|---------|
-| Security | SecurityAlert.Read.All, SecurityEvents.Read.All | Detect threats |
-| Identity | User.Read.All, Directory.Read.All | User context |
-| Audit | AuditLog.Read.All | Sign-in analysis |
-| Mail | Mail.Read (app) | BEC detection |
-| Devices | Device.Read.All | Asset inventory |
-| MDE | Alert.Read.All, Machine.Read.All | Endpoint threats |
+| Security & Alerts | SecurityAlert.Read.All, SecurityIncident.Read.All, SecurityEvents.Read.All, ThreatIndicators.Read.All, AttackSimulation.Read.All, SecurityActions.Read.All | Detect and triage threats |
+| Identity & Users | User.Read.All, Group.Read.All, GroupMember.Read.All, Directory.Read.All, AuditLog.Read.All, RoleManagement.Read.All, RoleManagement.Read.Directory, CrossTenantInformation.ReadBasic.All | User and directory context |
+| Identity Risk | IdentityRiskEvent.Read.All, IdentityRiskyUser.Read.All, IdentityRiskyServicePrincipal.Read.All, UserAuthenticationMethod.Read.All, IdentityProvider.Read.All | Risky identity detection |
+| Mail (BEC) | Mail.Read, MailboxSettings.Read | BEC detection |
+| Conditional Access & Policy | Policy.Read.All, Policy.Read.ConditionalAccess, ConsentRequest.Read.All | Policy visibility |
+| Devices & Intune | Device.Read.All, DeviceManagementManagedDevices.Read.All, DeviceManagementConfiguration.Read.All, DeviceManagementApps.Read.All, DeviceManagementServiceConfig.Read.All, DeviceManagementRBAC.Read.All, BitlockerKey.Read.All | Endpoint and Intune inventory |
+| Reports & Compliance | Reports.Read.All, InformationProtectionPolicy.Read.All, Organization.Read.All, Domain.Read.All, AccessReview.Read.All, EntitlementManagement.Read.All | Compliance posture |
+| Applications | Application.Read.All, DelegatedPermissionGrant.Read.All, ServicePrincipalEndpoint.Read.All | App and OAuth visibility |
+| SharePoint & OneDrive | Sites.Read.All, Files.Read.All | Data exfil detection |
+| Teams | TeamSettings.Read.All, Channel.ReadBasic.All | Teams visibility |
+| Threat Hunting | ThreatHunting.Read.All | Advanced hunting |
+| MDE - Monitoring | Machine.Read.All, Alert.Read.All, Vulnerability.Read.All, SecurityRecommendation.Read.All, Software.Read.All | Endpoint threat detection |
+| MDE - Advanced Hunting & Threat Intel | AdvancedQuery.Read.All, Ti.Read.All, File.Read.All, Ip.Read.All, Url.Read.All, User.Read.All | Advanced hunting and IOC lookup |
 
 ### CloudRaider-IR (Incident Response)
 
-Includes all SOC permissions, PLUS:
+Includes all SOC permissions, PLUS 24 additional Graph permissions and 9 MDE permissions. Risk: HIGH.
 
-| Category | Permissions | Purpose |
-|----------|-------------|---------|
-| Users | User.ReadWrite.All | Disable compromised accounts |
-| Policy | Policy.ReadWrite.ConditionalAccess | Block attackers |
-| Apps | Application.ReadWrite.All | Revoke OAuth consents |
-| Mail | MailboxSettings.ReadWrite | Remove malicious forwarding |
-| MDE | Machine.Isolate, Machine.LiveResponse | Contain threats |
+| Category | Additional Permissions | Purpose |
+|----------|------------------------|---------|
+| User Containment | User.ReadWrite.All, UserAuthenticationMethod.ReadWrite.All | Disable compromised accounts, reset MFA |
+| Identity Response | IdentityRiskyUser.ReadWrite.All, IdentityRiskyServicePrincipal.ReadWrite.All | Confirm/dismiss risky users and SPs |
+| Policy Modification | Policy.ReadWrite.ConditionalAccess, Policy.ReadWrite.AuthenticationMethod | Block attackers via CA, modify auth policies |
+| Directory Changes | Directory.ReadWrite.All, Group.ReadWrite.All, RoleManagement.ReadWrite.Directory | Modify directory, groups, and role assignments |
+| Application Response | Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All, DelegatedPermissionGrant.ReadWrite.All | Revoke OAuth consents, remove malicious apps |
+| Mail Response | Mail.ReadWrite, MailboxSettings.ReadWrite, Mail.Send | Remove malicious rules and forwarding |
+| Device Response | Device.ReadWrite.All, DeviceManagementManagedDevices.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All | Wipe or reconfigure compromised devices |
+| Security Actions | SecurityAlert.ReadWrite.All, SecurityIncident.ReadWrite.All, SecurityActions.ReadWrite.All, ThreatIndicators.ReadWrite.OwnedBy | Update alerts, incidents, and threat indicators |
+| SharePoint Response | Sites.ReadWrite.All, Files.ReadWrite.All | Remove malicious content |
+| MDE - Machine Response | Machine.ReadWrite.All, Machine.Isolate, Machine.CollectForensics, Machine.RestrictExecution, Machine.Scan, Machine.LiveResponse, Machine.StopAndQuarantine | Contain and investigate compromised endpoints |
+| MDE - Alert & Threat Response | Alert.ReadWrite.All, Ti.ReadWrite | Update alerts and threat indicators |
 
 ### CloudRaider-Admin (Tenant Management)
 
+21 Graph permissions + 2 MDE permissions. Risk: MEDIUM.
+
 | Category | Permissions | Purpose |
 |----------|-------------|---------|
-| Directory | Directory.ReadWrite.All | Full admin |
-| Users | User.ReadWrite.All | User provisioning |
-| Devices | Device.ReadWrite.All | Device management |
-| Intune | DeviceManagement*.ReadWrite.All | MDM management |
-| Policy | Policy.ReadWrite.* | Policy management |
+| Global Administration | RoleManagement.ReadWrite.Directory, Organization.ReadWrite.All, Domain.ReadWrite.All, EntitlementManagement.ReadWrite.All, PrivilegedAccess.ReadWrite.AzureADGroup, PrivilegedAccess.ReadWrite.AzureResources | Full tenant admin and PIM management |
+| Directory & Users | Directory.ReadWrite.All, User.ReadWrite.All, Group.ReadWrite.All, Organization.Read.All | User provisioning and directory management |
+| Applications | Application.ReadWrite.All, AppRoleAssignment.ReadWrite.All | App registration management |
+| Devices & Intune | Device.ReadWrite.All, DeviceManagementManagedDevices.ReadWrite.All, DeviceManagementConfiguration.ReadWrite.All, DeviceManagementApps.ReadWrite.All | Full device and MDM management |
+| Policy | Policy.ReadWrite.ConditionalAccess, Policy.ReadWrite.AuthenticationMethod | Policy configuration |
+| Mail & Audit | Mail.ReadWrite, MailboxSettings.ReadWrite, AuditLog.Read.All | Mailbox management and audit access |
+| MDE - Administration | Machine.Offboard, SecurityBaselinesAssessment.Read.All | Offboard machines and assess security baselines |
 
 ## Troubleshooting
 
@@ -202,6 +221,7 @@ If Microsoft Defender for Endpoint isn't configured in your tenant, MDE permissi
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 3.1 | 2026-03-01 | Permissions updated to manifest v2.0 - added advanced hunting, threat intel, Intune, Purview, Identity Protection |
 | 3.0 | 2025-12-25 | Three-tier model (SOC/IR/Admin), created during LifeScan incident |
 | 2.0 | 2025-12-05 | Smart auto-detection, repair mode |
 | 1.0 | 2025-10-01 | Initial release |
