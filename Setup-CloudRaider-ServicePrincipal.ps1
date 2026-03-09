@@ -251,6 +251,8 @@ $IRPermissions = @{
         "Device.ReadWrite.All" = "1138cb37-bd11-4084-a2b7-9f71582aeddb"               # Pre-existing (not in manifest but retained)
         "DeviceManagementManagedDevices.ReadWrite.All" = "243333ab-4d21-40cb-a475-36241f0c327c" # NEW - manifest v2.0
         "DeviceManagementConfiguration.ReadWrite.All" = "9241abd9-d0e6-425a-bd4f-47ba86e767a4" # NEW - manifest v2.0
+        "DeviceManagementServiceConfig.ReadWrite.All" = "5ac13192-7ace-4e73-b0b2-29f0c7228a5e" # NEW - v2.1 Intune policy/group mgmt
+        "DeviceManagementRBAC.ReadWrite.All" = "e330c4f0-4571-4e4e-a045-e8bc4dd41116"          # NEW - v2.1 MDE device group mgmt
 
         # SECURITY ACTIONS
         "SecurityAlert.ReadWrite.All" = "ed4fca05-be46-441f-9803-1873825f8fdb"        # Pre-existing (not in manifest but retained)
